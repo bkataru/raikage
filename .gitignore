@@ -10,3 +10,13 @@ zig-out/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Test files and temporary output
+test-output/
+*.rkg
+test.txt
+pass.txt
+
+# Session and temporary markdown files
+session-*.md
+chat.md
