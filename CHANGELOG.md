@@ -52,6 +52,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Individual run steps for each example (e.g., `zig build run-key_derivation`)
 - Organized documentation under `docs/` directory
 - API documentation in `docs/API.md`
+- Comprehensive GitHub Actions CI/CD workflows:
+  - Main CI workflow with multi-OS testing (Ubuntu, Windows, macOS)
+  - Automated release workflow for tag-based binary builds
+  - Code quality checks (formatting, metrics, documentation completeness)
+  - Security scanning (daily scheduled, hardcoded secrets detection)
+  - Cross-compilation support for x86_64 and aarch64 architectures
+  - Memory leak detection in automated tests
+- CI status badge in README.md
 
 ### Changed
 - Improved library usage documentation with comprehensive examples

@@ -1,0 +1,137 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run weekly on Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
+
+jobs:
+  lint:
+    name: Lint and Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: '0.15.2'
+
+      - name: Check code formatting
+        run: |
+          echo "Checking Zig code formatting..."
+          zig fmt --check src/ examples/ build.zig
+
+      - name: Check for common issues
+        run: |
+          echo "Checking for common code issues..."
+          
+          # Check for TODO comments
+          echo "📝 TODO comments:"
+          grep -r "TODO" src/ examples/ || echo "None found"
+          
+          # Check for FIXME comments
+          echo "🔧 FIXME comments:"
+          grep -r "FIXME" src/ examples/ || echo "None found"
+          
+          # Check for XXX comments
+          echo "⚠️ XXX comments:"
+          grep -r "XXX" src/ examples/ || echo "None found"
+
+      - name: Check code complexity
+        run: |
+          echo "Checking for long functions..."
+          for file in src/*.zig; do
+            lines=$(wc -l < "$file")
+            echo "$file: $lines lines"
+          done
+
+  documentation:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check documentation completeness
+        run: |
+          echo "Checking documentation files..."
+          [ -f README.md ] && echo "✅ README.md exists" || (echo "❌ README.md missing" && exit 1)
+          [ -f CHANGELOG.md ] && echo "✅ CHANGELOG.md exists" || (echo "❌ CHANGELOG.md missing" && exit 1)
+          [ -f LICENSE ] && echo "✅ LICENSE exists" || (echo "❌ LICENSE missing" && exit 1)
+          [ -f docs/API.md ] && echo "✅ docs/API.md exists" || (echo "❌ docs/API.md missing" && exit 1)
+
+      - name: Check for broken links in markdown
+        run: |
+          echo "Checking for common broken link patterns..."
+          ! grep -r "\](http" *.md docs/*.md | grep -i "localhost" || (echo "❌ Found localhost link" && exit 1)
+          echo "✅ No obvious broken links found"
+
+      - name: Verify example code is up-to-date
+        run: |
+          echo "Verifying examples directory..."
+          [ -d examples ] && echo "✅ examples/ directory exists" || (echo "❌ examples/ missing" && exit 1)
+          [ -f examples/README.md ] && echo "✅ examples/README.md exists" || echo "⚠️ examples/README.md missing"
+
+  dependencies:
+    name: Dependency Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: '0.15.2'
+
+      - name: Check build.zig.zon
+        run: |
+          if [ -f build.zig.zon ]; then
+            echo "✅ build.zig.zon exists"
+            cat build.zig.zon
+          else
+            echo "⚠️ No build.zig.zon (standalone project)"
+          fi
+
+      - name: Verify Zig version compatibility
+        run: |
+          echo "Checking Zig version in documentation..."
+          grep -q "0.15.2" README.md && echo "✅ README mentions Zig 0.15.2" || echo "⚠️ Version may be outdated"
+
+  metrics:
+    name: Code Metrics
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Count lines of code
+        run: |
+          echo "📊 Code Statistics:"
+          echo "Source files:"
+          find src/ -name "*.zig" -exec wc -l {} + | tail -1
+          echo ""
+          echo "Test files:"
+          find src/ -name "*.zig" -exec grep -l "test " {} \; | xargs wc -l 2>/dev/null | tail -1 || echo "0"
+          echo ""
+          echo "Example files:"
+          find examples/ -name "*.zig" -exec wc -l {} + 2>/dev/null | tail -1 || echo "0"
+          echo ""
+          echo "Documentation:"
+          find . -maxdepth 2 -name "*.md" -exec wc -l {} + | tail -1
+
+      - name: Generate complexity report
+        run: |
+          echo "📈 Complexity Report:"
+          echo "Number of functions:"
+          grep -r "^pub fn\|^fn " src/*.zig | wc -l
+          echo "Number of tests:"
+          grep -r "^test " src/*.zig | wc -l
+          echo "Number of public constants:"
+          grep -r "^pub const " src/*.zig | wc -l

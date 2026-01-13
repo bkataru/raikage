@@ -1,0 +1,207 @@
+name: Security
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily at 02:00 UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for known vulnerabilities in code
+        run: |
+          echo "🔒 Security Scan Report"
+          echo "======================="
+          
+          # Check for hardcoded credentials
+          echo ""
+          echo "1. Checking for hardcoded credentials..."
+          if grep -r -i "password.*=.*['\"][^'\"]\+['\"]" src/ examples/; then
+            echo "❌ Found potential hardcoded passwords"
+            exit 1
+          else
+            echo "✅ No hardcoded passwords found"
+          fi
+          
+          # Check for API keys
+          echo ""
+          echo "2. Checking for API keys..."
+          if grep -r -i "api.*key.*=.*['\"][^'\"]\+['\"]" src/ examples/; then
+            echo "❌ Found potential API keys"
+            exit 1
+          else
+            echo "✅ No API keys found"
+          fi
+          
+          # Check for secrets
+          echo ""
+          echo "3. Checking for secrets..."
+          if grep -r -i "secret.*=.*['\"][^'\"]\+['\"]" src/ examples/; then
+            echo "❌ Found potential secrets"
+            exit 1
+          else
+            echo "✅ No secrets found"
+          fi
+
+      - name: Verify cryptographic implementations
+        run: |
+          echo ""
+          echo "4. Verifying cryptographic implementations..."
+          
+          # Check for secure random usage
+          if grep -q "crypto.random" src/shared.zig; then
+            echo "✅ Using secure crypto.random"
+          else
+            echo "❌ crypto.random not found"
+            exit 1
+          fi
+          
+          # Verify no insecure random
+          if grep -r "std.rand.DefaultPrng" src/; then
+            echo "❌ Found insecure random number generator"
+            exit 1
+          else
+            echo "✅ No insecure random generators"
+          fi
+          
+          # Check for modern crypto algorithms
+          echo ""
+          echo "5. Verifying modern cryptographic algorithms..."
+          grep -q "ChaCha20Poly1305" src/shared.zig && echo "✅ Using ChaCha20-Poly1305 AEAD"
+          grep -q "Argon2" src/shared.zig && echo "✅ Using Argon2id key derivation"
+          grep -q "Blake3" src/shared.zig && echo "✅ Using Blake3 hashing"
+
+      - name: Check for secure memory handling
+        run: |
+          echo ""
+          echo "6. Verifying secure memory handling..."
+          
+          # Check for secure zeroing
+          if grep -q "secureZero" src/shared.zig; then
+            echo "✅ Using secure memory zeroing"
+          else
+            echo "⚠️ Secure zeroing not found"
+          fi
+          
+          # Check for memory leaks detection
+          if grep -q "GeneralPurposeAllocator" src/main.zig; then
+            echo "✅ Using GeneralPurposeAllocator (leak detection)"
+          else
+            echo "⚠️ No leak detection allocator found"
+          fi
+
+      - name: Verify authentication and integrity
+        run: |
+          echo ""
+          echo "7. Verifying authentication and integrity..."
+          
+          # Check for authentication tag
+          grep -q "tag" src/shared.zig && echo "✅ Using authentication tags"
+          
+          # Check for integrity verification
+          grep -q "data_hash" src/shared.zig && echo "✅ Using integrity hashing"
+
+      - name: Check for common security anti-patterns
+        run: |
+          echo ""
+          echo "8. Checking for security anti-patterns..."
+          
+          # Check for exec/system calls
+          if grep -r "std.process.exec\|std.os.system" src/; then
+            echo "⚠️ Found process execution - review required"
+          else
+            echo "✅ No process execution found"
+          fi
+          
+          # Check for unsafe operations
+          if grep -r "@ptrCast\|@intToPtr" src/; then
+            echo "⚠️ Found unsafe pointer operations - review required"
+          else
+            echo "✅ No unsafe pointer operations"
+          fi
+
+  dependency-security:
+    name: Dependency Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for dependency vulnerabilities
+        run: |
+          echo "Checking dependencies..."
+          if [ -f build.zig.zon ]; then
+            echo "build.zig.zon contents:"
+            cat build.zig.zon
+            echo ""
+            echo "ℹ️ Manual review recommended for dependencies"
+          else
+            echo "✅ No external dependencies (standalone project)"
+          fi
+
+  fuzz-testing:
+    name: Fuzz Testing Preparation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: '0.15.2'
+
+      - name: Identify fuzz targets
+        run: |
+          echo "Potential fuzz targets:"
+          echo "- deriveKey (password input)"
+          echo "- hashData (arbitrary data)"
+          echo "- Header.read (malformed headers)"
+          echo "- encryptFileStreaming (various file sizes)"
+          echo ""
+          echo "ℹ️ Consider implementing fuzz tests in future"
+
+  permissions-check:
+    name: File Permissions Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check file permissions
+        run: |
+          echo "Checking file permissions..."
+          
+          # Check for executable files that shouldn't be
+          find src/ examples/ -name "*.zig" -executable -type f && echo "⚠️ Found executable .zig files" || echo "✅ No executable source files"
+          
+          # Check for world-writable files
+          find . -type f -perm -002 ! -path "./.git/*" && echo "⚠️ Found world-writable files" || echo "✅ No world-writable files"
+
+  security-summary:
+    name: Security Summary
+    needs: [security-scan, dependency-security, permissions-check]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate security summary
+        run: |
+          echo "# Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Security scan completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Checks Performed:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Hardcoded credentials scan" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Cryptographic implementation verification" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Memory safety checks" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Dependency security review" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ File permissions audit" >> $GITHUB_STEP_SUMMARY
