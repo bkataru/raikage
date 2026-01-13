@@ -16,6 +16,13 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(exe);
 
+    // Export raikage module for use as a library
+    _ = b.addModule("raikage", .{
+        .root_source_file = b.path("src/shared.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
 

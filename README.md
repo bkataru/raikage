@@ -72,6 +72,117 @@ zig build test
 zig build test --summary all
 ```
 
+### Using as a Library
+
+Raikage can also be used as a cryptographic library in your Zig projects.
+
+#### Option 1: Using `zig fetch` (Recommended)
+
+The `zig fetch` command downloads the package and automatically adds it to your `build.zig.zon`:
+
+```bash
+zig fetch --save git+https://github.com/bkataru/raikage.git
+```
+
+For a specific version (recommended for production):
+```bash
+zig fetch --save git+https://github.com/bkataru/raikage.git#v1.1.0
+```
+
+This will automatically update your `build.zig.zon` file with the correct dependency entry and hash.
+
+#### Option 2: Manual Configuration
+
+If you prefer to manually configure dependencies, add to your `build.zig.zon`:
+
+```zig
+.dependencies = .{
+    .raikage = .{
+        .url = "git+https://github.com/bkataru/raikage.git#v1.1.0",
+        .hash = "12209a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f", // Content hash for integrity verification
+    },
+},
+```
+
+**Note:** The `.hash` field is a cryptographic fingerprint that ensures package integrity. When you first add the dependency, use a placeholder like `"1220..."` and run `zig build`. Zig will tell you the correct hash to use. For example:
+
+```
+$ zig build
+error: hash mismatch:
+  expected: 1220...
+  actual:   12209a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f
+
+note: to update the hash, use:
+  .hash = "12209a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f",
+```
+
+#### Option 3: Local Path Dependency
+
+For local development or testing changes:
+
+```zig
+.dependencies = .{
+    .raikage = .{
+        .path = "../raikage",
+    },
+},
+```
+
+This is useful when you're developing both projects simultaneously or want to test local modifications.
+
+#### Configuring build.zig
+
+After adding the dependency to `build.zig.zon`, configure your `build.zig` to use the raikage module:
+
+```zig
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    // Fetch the raikage dependency
+    const raikage_dep = b.dependency("raikage", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Get the module from the dependency
+    const raikage_mod = raikage_dep.module("raikage");
+
+    // Create your executable
+    const exe = b.addExecutable(.{
+        .name = "my_app",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add the raikage import to your executable
+    exe.root_module.addImport("raikage", raikage_mod);
+
+    b.installArtifact(exe);
+}
+```
+
+**Complete Workflow Example:**
+
+```bash
+# 1. Initialize your project (if not already done)
+zig init
+
+# 2. Add raikage as a dependency
+zig fetch --save git+https://github.com/bkataru/raikage.git#v1.1.0
+
+# 3. Update your build.zig (see code example above)
+
+# 4. Build your project
+zig build
+
+# 5. Use raikage in your code (src/main.zig):
+# const raikage = @import("raikage");
+```
+
 ## Usage
 
 ### Encrypting a File
@@ -112,6 +223,114 @@ The decrypted file will have the `.rkg` extension removed.
 - Can include any characters (letters, numbers, symbols, spaces)
 - Hidden input (not displayed while typing)
 - Confirmation required when encrypting
+
+## Library API
+
+When using Raikage as a library, import it in your Zig code:
+
+```zig
+const raikage = @import("raikage");
+```
+
+### Core Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `deriveKey` | `fn(allocator: Allocator, password: []const u8, salt: [16]u8) ![32]u8` | Derive encryption key using Argon2id with t=3, m=32MB, p=4 |
+| `hashData` | `fn(data: []const u8) [32]u8` | Compute Blake3 hash (32 bytes) of data |
+| `generateRandom` | `fn(buffer: []u8) !void` | Fill buffer with cryptographically secure random bytes |
+| `secureZeroKey` | `fn(key: *[32]u8) void` | Securely zero key from memory using volatile writes |
+| `encryptFileStreaming` | `fn(input_file: File, output_file: File, password: []const u8, allocator: Allocator) !void` | Encrypt file with automatic streaming for large files |
+| `decryptFileStreaming` | `fn(input_file: File, output_file: File, password: []const u8, allocator: Allocator) !void` | Decrypt file with automatic streaming for large files |
+
+### Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `KEY_LEN` | 32 | ChaCha20-Poly1305 key size (bytes) |
+| `SALT_LEN` | 16 | Argon2id salt size (bytes) |
+| `NONCE_LEN` | 12 | ChaCha20-Poly1305 nonce size (bytes) |
+| `TAG_LEN` | 16 | Poly1305 authentication tag size (bytes) |
+| `HASH_LEN` | 32 | Blake3 hash output size (bytes) |
+| `HEADER_SIZE` | 86 | `.rkg` encrypted file header size (bytes) |
+| `CHUNK_SIZE` | 65536 | Streaming chunk size - 64KB |
+| `STREAMING_THRESHOLD` | 104857600 | File size threshold for streaming mode - 100MB |
+| `MAX_FILE_SIZE` | 1073741824 | Maximum supported file size - 1GB |
+
+### Example: Key Derivation
+
+```zig
+const std = @import("std");
+const raikage = @import("raikage");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Generate random salt
+    var salt: [raikage.SALT_LEN]u8 = undefined;
+    try raikage.generateRandom(&salt);
+
+    // Derive key from password
+    const password = "my_secure_password";
+    const key = try raikage.deriveKey(allocator, password, salt);
+    defer {
+        var mutable_key = key;
+        raikage.secureZeroKey(&mutable_key);
+    }
+
+    std.debug.print("Key derived successfully!\n", .{});
+}
+```
+
+### Example: File Hashing
+
+```zig
+const std = @import("std");
+const raikage = @import("raikage");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    const file = try std.fs.cwd().openFile("document.pdf", .{});
+    defer file.close();
+
+    const data = try file.readToEndAlloc(allocator, raikage.MAX_FILE_SIZE);
+    defer allocator.free(data);
+
+    const hash = raikage.hashData(data);
+    std.debug.print("Blake3 hash: {s}\n", .{std.fmt.fmtSliceHexLower(&hash)});
+}
+```
+
+### Example: Custom Encryption Workflow
+
+```zig
+const std = @import("std");
+const raikage = @import("raikage");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    const input_file = try std.fs.cwd().openFile("sensitive.txt", .{});
+    defer input_file.close();
+
+    const output_file = try std.fs.cwd().createFile("sensitive.txt.encrypted", .{});
+    defer output_file.close();
+
+    const password = "strong_password_here";
+
+    // Encrypt file using streaming mode
+    try raikage.encryptFileStreaming(input_file, output_file, password, allocator);
+
+    std.debug.print("File encrypted successfully!\n", .{});
+}
+```
 
 ## File Format Specification
 
