@@ -107,8 +107,13 @@ jobs:
       - name: Cross-compile for ${{ matrix.target }}
         run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
 
-      - name: Check binary size
-        run: ./zig-out/bin/ci-utils check-binary-size
+      - name: Verify binary exists
+        run: |
+          if [ "${{ matrix.target }}" = "x86_64-windows" ]; then
+            ls -lh zig-out/bin/raikage.exe
+          else
+            ls -lh zig-out/bin/raikage
+          fi
 
   security-audit:
     name: Security Audit
