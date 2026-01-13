@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manual and automated testing instructions
 - Library usage examples for key derivation, hashing, and encryption
 
-## [Unreleased]
+## [1.0.1] - 2026-01-14
 
 ### Added
 - Examples directory with three working code samples:
@@ -74,5 +74,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Buffered I/O issue in streaming functions that caused 0-byte encrypted files when used as library
 - Incorrect API documentation for `generateRandom()` (returns `void`, not `!void`)
 - Incorrect example code showing outdated hex formatting methods
+- Fixed Zig 0.15.2 compatibility issues in `src/shared.zig`:
+  - Updated posix import from `std.os` to `std.posix` (line 114)
+  - Corrected `tcgetattr()` API usage to match new return-value signature (lines 118-122)
+- Resolved CI security scan false positives by excluding test code from hardcoded password detection
 
+## [Unreleased]
+
+### Added
+- None
+
+### Changed
+- None
+
+### Fixed
+- None
+
+[1.0.1]: https://github.com/bkataru/raikage/releases/tag/v1.0.1
 [1.0.0]: https://github.com/bkataru/raikage/releases/tag/v1.0.0

@@ -2,7 +2,7 @@
 
 [![Zig](https://img.shields.io/badge/Zig-0.15.2-orange.svg)](https://ziglang.org/download/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)](https://github.com/bkataru/raikage/releases)
+[![Version](https://img.shields.io/badge/version-1.0.1-green.svg)](https://github.com/bkataru/raikage/releases)
 [![CI](https://github.com/bkataru/raikage/workflows/CI/badge.svg)](https://github.com/bkataru/raikage/actions/workflows/ci.yml)
 
 A high-performance, secure file encryption CLI tool written in Zig 0.15.2, using modern cryptographic algorithms including ChaCha20-Poly1305 AEAD encryption, Argon2id key derivation, and Blake3 hashing.
