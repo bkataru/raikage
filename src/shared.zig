@@ -115,8 +115,7 @@ fn readPasswordHidden(allocator: Allocator, max_len: usize) ![]u8 {
         const stdin_fd = std.fs.File.stdin().handle;
 
         // Get current terminal settings
-        var old_term: posix.termios = undefined;
-        _ = posix.tcgetattr(stdin_fd, &old_term) catch {
+        const old_term = posix.tcgetattr(stdin_fd) catch {
             // Fallback if not a terminal
             return readPasswordFallback(allocator, max_len);
         };

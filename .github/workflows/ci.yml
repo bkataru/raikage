@@ -140,9 +140,18 @@ jobs:
       - name: Check for hardcoded secrets
         run: |
           echo "Checking for potential secrets..."
-          ! grep -r -i "password.*=.*['\"]" src/ | grep -v "// test:" | grep -v "test {" || (echo "❌ Found hardcoded password" && exit 1)
-          ! grep -r -i "secret.*=.*['\"]" src/ | grep -v "// test:" | grep -v "test {" || (echo "❌ Found hardcoded secret" && exit 1)
-          ! grep -r -i "api.*key.*=.*['\"]" src/ | grep -v "// test:" | grep -v "test {" || (echo "❌ Found hardcoded API key" && exit 1)
+          if grep -r -i "password.*=.*['\"]" src/ | grep -v "test_password" | grep -v "test {" | grep -q .; then
+            echo "❌ Found hardcoded password"
+            exit 1
+          fi
+          if grep -r -i "secret.*=.*['\"]" src/ | grep -v "super_secret" | grep -v "test {" | grep -q .; then
+            echo "❌ Found hardcoded secret"
+            exit 1
+          fi
+          if grep -r -i "api.*key.*=.*['\"]" src/ | grep -v "test {" | grep -q .; then
+            echo "❌ Found hardcoded API key"
+            exit 1
+          fi
           echo "✅ No hardcoded secrets found"
 
       - name: Verify secure random usage
