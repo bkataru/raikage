@@ -1,5 +1,9 @@
 # Raikage - Secure File Encryption Tool
 
+[![Zig](https://img.shields.io/badge/Zig-0.15.2-orange.svg)](https://ziglang.org/download/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)](https://github.com/bkataru/raikage/releases)
+
 A high-performance, secure file encryption CLI tool written in Zig 0.15.2, using modern cryptographic algorithms including ChaCha20-Poly1305 AEAD encryption, Argon2id key derivation, and Blake3 hashing.
 
 ## Features
@@ -86,7 +90,7 @@ zig fetch --save git+https://github.com/bkataru/raikage.git
 
 For a specific version (recommended for production):
 ```bash
-zig fetch --save git+https://github.com/bkataru/raikage.git#v1.1.0
+zig fetch --save git+https://github.com/bkataru/raikage.git#v1.0.0
 ```
 
 This will automatically update your `build.zig.zon` file with the correct dependency entry and hash.
@@ -98,7 +102,7 @@ If you prefer to manually configure dependencies, add to your `build.zig.zon`:
 ```zig
 .dependencies = .{
     .raikage = .{
-        .url = "git+https://github.com/bkataru/raikage.git#v1.1.0",
+        .url = "git+https://github.com/bkataru/raikage.git#v1.0.0",
         .hash = "12209a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f", // Content hash for integrity verification
     },
 },
@@ -172,7 +176,7 @@ pub fn build(b: *std.Build) void {
 zig init
 
 # 2. Add raikage as a dependency
-zig fetch --save git+https://github.com/bkataru/raikage.git#v1.1.0
+zig fetch --save git+https://github.com/bkataru/raikage.git#v1.0.0
 
 # 3. Update your build.zig (see code example above)
 

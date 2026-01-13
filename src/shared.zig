@@ -303,10 +303,17 @@ pub fn encryptFileStreaming(
     };
 
     // Write header and ciphertext
-    var output_buffer: [16384]u8 = undefined;
-    var output_writer = output_file.writer(&output_buffer);
-    try header.write(&output_writer.interface);
-    try output_writer.interface.writeAll(ciphertext);
+    // Use unbuffered I/O to ensure data is written
+    {
+        var header_buf: [256]u8 = undefined;
+        var fbs = std.io.fixedBufferStream(&header_buf);
+        var header_writer = fbs.writer();
+        try header.write(&header_writer);
+        const header_bytes = fbs.getWritten();
+        try output_file.writeAll(header_bytes);
+    }
+    try output_file.writeAll(ciphertext);
+    try output_file.sync();
 }
 
 /// Decrypt a file using streaming (for large files >100MB)
@@ -345,9 +352,8 @@ pub fn decryptFileStreaming(
     }
 
     // Write decrypted data
-    var output_buffer: [16384]u8 = undefined;
-    var output_writer = output_file.writer(&output_buffer);
-    try output_writer.interface.writeAll(decrypted);
+    try output_file.writeAll(decrypted);
+    try output_file.sync();
 }
 
 /// Get stderr writer for outputting messages

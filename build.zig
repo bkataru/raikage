@@ -17,7 +17,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(exe);
 
     // Export raikage module for use as a library
-    _ = b.addModule("raikage", .{
+    const raikage_module = b.addModule("raikage", .{
         .root_source_file = b.path("src/shared.zig"),
         .target = target,
         .optimize = optimize,
@@ -45,4 +45,34 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
+
+    // Examples
+    const examples_step = b.step("examples", "Build all examples");
+
+    const example_names = [_][]const u8{
+        "key_derivation",
+        "file_hashing",
+        "custom_encryption",
+    };
+
+    inline for (example_names) |example_name| {
+        const example = b.addExecutable(.{
+            .name = example_name,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(b.fmt("examples/{s}.zig", .{example_name})),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+
+        example.root_module.addImport("raikage", raikage_module);
+
+        const install_example = b.addInstallArtifact(example, .{});
+        examples_step.dependOn(&install_example.step);
+
+        // Add run step for each example
+        const run_example = b.addRunArtifact(example);
+        const run_example_step = b.step(b.fmt("run-{s}", .{example_name}), b.fmt("Run the {s} example", .{example_name}));
+        run_example_step.dependOn(&run_example.step);
+    }
 }
